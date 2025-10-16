@@ -1,0 +1,17 @@
+[[service]]
+api-key = "xxx"
+endpoint = "https://api.coingecko.com/api/v3/coins/markets"
+category = "bitcoin"
+
+[service.fields]
+field1 = "JSONPath"
+
+
+[[service]]
+api-key = "xxx"
+endpoint = "https://api.coingecko.com/api/v3/coins/markets"
+category = "bitcoin"
+
+[service.fields]
+field1 = "JSONPath"
+
