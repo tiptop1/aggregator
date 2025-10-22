@@ -12,13 +12,13 @@ pub struct Config {
 
 
 #[derive(Debug, Deserialize)]
-pub struct Fields(HashMap<String, String>);
+pub struct Fields(pub HashMap<String, String>);
 
 #[derive(Debug, Deserialize)]
 pub struct Service {
-    endpoint: String,
-    category: String,
-    fields: Fields
+    pub endpoint: String,
+    pub category: String,
+    pub fields: Fields
 }
 
 #[derive(Error, Debug)]
