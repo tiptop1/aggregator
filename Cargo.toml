@@ -1,5 +1,5 @@
 [package]
-name = "leprechaun"
+name = "aggregator"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,6 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.8"
 thiserror = "2.0.17"
+reqwest = "0.12.24"
+serde_json = "1.0.145"
+serde_json_path = "0.7.2"
