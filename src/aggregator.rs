@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum AggregatroError {
+pub enum AggregatorError {
     #[error("Failed to get content from url:: {0}")]
     Get(#[from] reqwest::Error),
 
@@ -58,30 +58,30 @@ impl Aggregates {
     }
 }
 
-pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatroError> {
+pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorError> {
     let mut aggregates = Aggregates::new();
-    for service in config.service {
-        let endpoint = service.endpoint;
+    for service in &(config.service) {
+        let endpoint = &(service.endpoint);
         let response = get(endpoint).await?;
         if response.status().is_success() {
-            let category = service.category;
+            let category = &service.category;
             let json_content = json!(response.text().await?);
-            for (field, path) in service.fields.0 {
+            for (field, path) in &(service.fields.0) {
                 let path = JsonPath::parse(&path)?;
                 let node = path.query(&json_content).exactly_one()?;
-                let node_str = match (node) {
+                let node_str = match node {
                     Value::Null => "Null".to_string(),
                     Value::Bool(value) => value.to_string(),
                     Value::Number(value) => value.to_string(),
                     Value::String(value) => value.clone(),
-                    Value::Array(value) => "JSON Array not supported!".to_string(),
-                    Value::Object(value) => "JSON Object not supported!".to_string()
+                    Value::Array(_value) => "JSON Array not supported!".to_string(),
+                    Value::Object(_value) => "JSON Object not supported!".to_string()
                 };
-                aggregates.add(category, field, node_str);
+                aggregates.add(category.clone(), field.clone(), node_str);
             }
         } else {
             println!("Request failed! Status: {}", response.status());
         }
     }
-    aggregates
+    Ok(aggregates)
 }
