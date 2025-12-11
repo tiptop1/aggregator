@@ -1,6 +1,6 @@
 use aggregator::config::{read_configuration, ConfigError};
 use aggregator::aggregator::{aggregate_fields, AggregatorError};
-use aggregator::printer::stdout_print;
+use aggregator::printer::{Printer, StdoutPrinter};
 use std::path::PathBuf;
 use thiserror::Error;
 use tokio;
@@ -28,6 +28,7 @@ async fn main() -> Result<(), ApplicationError> {
     }
     let config = read_configuration(&config_file)?;
     let aggregates = aggregate_fields(&config).await?;
-    stdout_print(&aggregates);
+    let printer = StdoutPrinter{};
+    printer.print(&aggregates);
     Ok(())
 }
