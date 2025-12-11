@@ -1,13 +1,14 @@
 [[service]]
 category = "bitcoin"
-api-key-header = "x-cg-demo-api-key"
-api-key = "${coingecko_api-key}"
 endpoint = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true"
+
+[service.headers]
+x-cg-demo-api-key = "${coingecko_api-key}"
 
 [service.fields]
 price = "$.bitcoin.usd"
 market_cup = "$.bitcoin.usd_market_cap"
-volume_24h = "$.bitcoin.sd_24h_vol"
+volume_24h = "$.bitcoin.usd_24h_vol"
 price_change_24h = "$.bitcoin.usd_24h_change"
 
 
