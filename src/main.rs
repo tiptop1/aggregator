@@ -4,6 +4,7 @@ use aggregator::printer::stdout_print;
 use std::path::PathBuf;
 use thiserror::Error;
 use tokio;
+use std::env;
 
 
 #[derive(Error, Debug)]
@@ -16,12 +17,16 @@ pub enum ApplicationError {
 
 }
 
+const CONFIG_FILE: &str = "config.toml";
 
 #[tokio::main]
 async fn main() -> Result<(), ApplicationError> {
-    let mut path = PathBuf::new();
-    path.push("config.toml");
-    let config = read_configuration(&path)?;
+    // Try to find config file in OUT_DIR, if not found use config file from current directory
+    let mut config_file = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join(CONFIG_FILE);
+    if !config_file.exists() {
+        config_file = PathBuf::from(CONFIG_FILE);
+    }
+    let config = read_configuration(&config_file)?;
     let aggregates = aggregate_fields(&config).await?;
     stdout_print(&aggregates);
     Ok(())
