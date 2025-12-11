@@ -15,9 +15,14 @@ pub struct Config {
 pub struct Fields(pub HashMap<String, String>);
 
 #[derive(Debug, Deserialize)]
+pub struct Headers(pub HashMap<String, String>);
+
+
+#[derive(Debug, Deserialize)]
 pub struct Service {
-    pub endpoint: String,
     pub category: String,
+    pub endpoint: String,
+    pub headers: Option<Headers>,
     pub fields: Fields
 }
 
