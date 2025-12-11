@@ -1,6 +1,6 @@
 use super::config::Config;
-use reqwest::get;
-use serde_json::{json, Value};
+use reqwest::Client;
+use serde_json::{Value, from_str};
 use serde_json_path::{JsonPath, ParseError, ExactlyOneError};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -15,6 +15,9 @@ pub enum AggregatorError {
 
     #[error("Failed to get one value from JSON: {0}")]
     ExactlyOne(#[from] ExactlyOneError),
+
+    #[error("Failed to creae JSON: {0}")]
+    Json(#[from] serde_json::Error),
 
 }
 
@@ -61,23 +64,38 @@ impl Aggregates {
 pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorError> {
     let mut aggregates = Aggregates::new();
     for service in &(config.service) {
-        let endpoint = &(service.endpoint);
-        let response = get(endpoint).await?;
+        let client = Client::new();
+        let mut request_builder = client.get(&service.endpoint);
+        if let Some(headers) = &service.headers {
+            for (header, value) in headers.0.iter() {
+                request_builder = request_builder.header(header, value);
+            }
+        };
+
+        let response = request_builder.send().await?;
         if response.status().is_success() {
             let category = &service.category;
-            let json_content = json!(response.text().await?);
+            let json_content = from_str(&response.text().await?)?;
             for (field, path) in &(service.fields.0) {
-                let path = JsonPath::parse(&path)?;
-                let node = path.query(&json_content).exactly_one()?;
-                let node_str = match node {
-                    Value::Null => "Null".to_string(),
-                    Value::Bool(value) => value.to_string(),
-                    Value::Number(value) => value.to_string(),
-                    Value::String(value) => value.clone(),
-                    Value::Array(_value) => "JSON Array not supported!".to_string(),
-                    Value::Object(_value) => "JSON Object not supported!".to_string()
-                };
-                aggregates.add(category.clone(), field.clone(), node_str);
+                let json_path = JsonPath::parse(&path)?;
+                let values = json_path.query(&json_content).all();
+                if values.len() > 0 {
+                    let node = match values.first() {
+                        Some(value) => value,
+                        None => &&Value::Null
+
+                    };
+                    let node_str = match node {
+                        Value::Null => "Null".to_string(),
+                        Value::Bool(value) => value.to_string(),
+                        Value::Number(value) => value.to_string(),
+                        Value::String(value) => value.clone(),
+                        Value::Array(_value) => "JSON Array not supported!".to_string(),
+                        Value::Object(_value) => "JSON Object not supported!".to_string()
+                    };
+
+                    aggregates.add(category.clone(), field.clone(), node_str);
+                }
             }
         } else {
             println!("Request failed! Status: {}", response.status());
