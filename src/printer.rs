@@ -40,7 +40,7 @@ pub struct SmtpPrinter<'a> {
 }
 
 impl<'a> SmtpPrinter<'a> {
-    pub fn new(config: &'a SmtpPrinterConfig) -> SmtpPrinter {
+    pub fn new(config: &SmtpPrinterConfig) -> SmtpPrinter {
         SmtpPrinter { config }
     }
 }
