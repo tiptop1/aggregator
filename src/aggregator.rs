@@ -63,7 +63,7 @@ impl Aggregates {
 
 pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorError> {
     let mut aggregates = Aggregates::new();
-    for service in &(config.service) {
+    for service in &(config.services) {
         let client = Client::new();
         let mut request_builder = client.get(&service.endpoint);
         if let Some(headers) = &service.headers {
