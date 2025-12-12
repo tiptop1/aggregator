@@ -7,7 +7,8 @@ use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-   pub service: Vec<Service>
+   pub services: Vec<Service>,
+   pub smtp_printer: SmptPrinterConfig
 }
 
 
@@ -24,6 +25,17 @@ pub struct Service {
     pub endpoint: String,
     pub headers: Option<Headers>,
     pub fields: Fields
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SmptPrinterConfig  {
+    pub server: String,
+    pub port: i32,
+    pub security: Option<String>,
+    pub login: String,
+    pub password: String,
+    pub from_email: String,
+    pub to_emails: String
 }
 
 #[derive(Error, Debug)]
