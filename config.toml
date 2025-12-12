@@ -2,7 +2,7 @@
 server = "smtp.gmail.com"
 port = 587
 # security = "tls"
-login = "${smtp_login}"
+username = "${smtp_login}"
 password = "${smtp_passwd}"
 from_email = "${smtp_from_email}"
 to_emails = "${smtp_to_emails}"

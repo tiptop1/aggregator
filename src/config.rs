@@ -32,7 +32,7 @@ pub struct SmtpPrinterConfig  {
     pub server: String,
     pub port: i32,
     pub security: Option<String>,
-    pub login: String,
+    pub username: String,
     pub password: String,
     pub from_email: String,
     pub to_emails: String
