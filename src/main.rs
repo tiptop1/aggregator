@@ -1,6 +1,6 @@
 use aggregator::config::{read_configuration, ConfigError};
 use aggregator::aggregator::{aggregate_fields, AggregatorError};
-use aggregator::printer::{Printer, StdoutPrinter};
+use aggregator::printer::{Printer, PrinterError, SmtpPrinter, StdoutPrinter};
 use std::path::PathBuf;
 use thiserror::Error;
 use tokio;
@@ -13,8 +13,10 @@ pub enum ApplicationError {
     Config(#[from] ConfigError),
 
     #[error("Failed to aggregate fields: {0}")]
-    Aggregator(#[from] AggregatorError)
-
+    Aggregator(#[from] AggregatorError),
+   
+    #[error("Failed to send message via SMTP: {0}")]
+    Printer(#[from] PrinterError)
 }
 
 const CONFIG_FILE: &str = "config.toml";
@@ -28,7 +30,7 @@ async fn main() -> Result<(), ApplicationError> {
     }
     let config = read_configuration(&config_file)?;
     let aggregates = aggregate_fields(&config).await?;
-    let printer = StdoutPrinter{};
-    printer.print(&aggregates);
+    let printer = SmtpPrinter::new(&config.smtp_printer);
+    let _ = printer.print(&aggregates)?;
     Ok(())
 }
