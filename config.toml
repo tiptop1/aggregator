@@ -1,11 +1,21 @@
-[[service]]
+[smtp_printer]
+server = "smtp.gmail.com"
+port = 587
+# security = "tls"
+login = "${smtp_login}"
+password = "${smtp_passwd}"
+from_email = "${smtp_from_email}"
+to_emails = "${smtp_to_emails}"
+
+
+[[services]]
 category = "bitcoin"
 endpoint = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true"
 
-[service.headers]
-x-cg-demo-api-key = "${coingecko_api-key}"
+[services.headers]
+x-cg-demo-api-key = "${coingecko_api_key}"
 
-[service.fields]
+[services.fields]
 price = "$.bitcoin.usd"
 market_cup = "$.bitcoin.usd_market_cap"
 volume_24h = "$.bitcoin.usd_24h_vol"
