@@ -1,5 +1,5 @@
 use super::aggregator::Aggregates;
-use super::config::Config;
+use super::config::SmtpPrinterConfig;
 
 pub trait Printer {
     fn print(&self, aggregates: &Aggregates);
@@ -36,11 +36,11 @@ impl Printer for StdoutPrinter {
 }
 
 pub struct SmtpPrinter<'a> {
-    config: &'a Config,
+    config: &'a SmtpPrinterConfig,
 }
 
 impl<'a> SmtpPrinter<'a> {
-    pub fn new(config: &'a Config) -> SmtpPrinter {
+    pub fn new(config: &'a SmtpPrinterConfig) -> SmtpPrinter {
         SmtpPrinter { config }
     }
 }
