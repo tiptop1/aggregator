@@ -1,6 +1,6 @@
 use aggregator::config::{read_configuration, ConfigError};
 use aggregator::aggregator::{aggregate_fields, AggregatorError};
-use aggregator::printer::{Printer, PrinterError, SmtpPrinter, StdoutPrinter};
+use aggregator::printer::{Printer, PrinterError, SmtpPrinter};
 use std::path::PathBuf;
 use thiserror::Error;
 use tokio;
@@ -24,10 +24,10 @@ const CONFIG_FILE: &str = "config.toml";
 #[tokio::main]
 async fn main() -> Result<(), ApplicationError> {
     // Try to find config file in OUT_DIR, if not found use config file from current directory
-    let mut config_file = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join(CONFIG_FILE);
-    if !config_file.exists() {
-        config_file = PathBuf::from(CONFIG_FILE);
-    }
+    let config_file = match env::var_os("OUT_DIR") {
+        Some(path) => PathBuf::from(path).join(CONFIG_FILE),
+        None => PathBuf::from(CONFIG_FILE)
+    };
     let config = read_configuration(&config_file)?;
     let aggregates = aggregate_fields(&config).await?;
     let printer = SmtpPrinter::new(&config.smtp_printer);
