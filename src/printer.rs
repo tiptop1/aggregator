@@ -38,6 +38,7 @@ pub trait Printer {
                 }
                 _ => (),
             }
+            str.push_str("\n");
         }
         str
     }
