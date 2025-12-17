@@ -1,8 +1,8 @@
 use super::config::Config;
+use indexmap::IndexMap;
 use reqwest::Client;
 use serde_json::{Value, from_str};
 use serde_json_path::{JsonPath, ParseError, ExactlyOneError};
-use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -23,13 +23,13 @@ pub enum AggregatorError {
 
 #[derive(Debug)]
 pub struct Aggregates {
-    aggregates: HashMap<String, HashMap<String, String>>,
+    aggregates: IndexMap<String, IndexMap<String, String>>,
 }
 
 impl Aggregates {
     fn new() -> Self {
         Aggregates {
-            aggregates: HashMap::new(),
+            aggregates: IndexMap::new(),
         }
     }
 
@@ -41,7 +41,7 @@ impl Aggregates {
         return categories;
     }
 
-    pub fn fields(&self, category: &String) -> Option<&HashMap<String, String>> {
+    pub fn fields(&self, category: &String) -> Option<&IndexMap<String, String>> {
         let fields = self.aggregates.get(category)?;
         return Some(fields);
     }
@@ -54,7 +54,7 @@ impl Aggregates {
                 ()
             })
             .or_insert_with(|| {
-                let mut new_fields = HashMap::new();
+                let mut new_fields = IndexMap::new();
                 new_fields.insert(field, value);
                 new_fields
             });
