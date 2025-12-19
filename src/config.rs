@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -13,7 +14,7 @@ pub struct Config {
 
 
 #[derive(Debug, Deserialize)]
-pub struct Fields(pub HashMap<String, String>);
+pub struct Fields(pub IndexMap<String, String>);
 
 #[derive(Debug, Deserialize)]
 pub struct Headers(pub HashMap<String, String>);
