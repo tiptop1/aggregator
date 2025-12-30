@@ -17,6 +17,9 @@ pub struct Config {
 pub struct Fields(pub IndexMap<String, String>);
 
 #[derive(Debug, Deserialize)]
+pub struct ReferenceFields(pub HashMap<String, String>);
+
+#[derive(Debug, Deserialize)]
 pub struct Headers(pub HashMap<String, String>);
 
 
@@ -25,6 +28,7 @@ pub struct Service {
     pub category: String,
     pub endpoint: String,
     pub headers: Option<Headers>,
+    pub reference_fields: Option<ReferenceFields>,
     pub fields: Fields
 }
 
