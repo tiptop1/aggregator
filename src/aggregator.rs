@@ -1,24 +1,26 @@
 use super::config::Config;
 use indexmap::IndexMap;
 use reqwest::Client;
-use serde_json::{Value, from_str};
-use serde_json_path::{JsonPath, ParseError, ExactlyOneError};
+use serde_json::{from_str, Value};
+use serde_json_path::{ExactlyOneError, JsonPath, ParseError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AggregatorError {
-    #[error("Failed to get content from url:: {0}")]
+    #[error("Failed to get content from url.")]
     Get(#[from] reqwest::Error),
 
-    #[error("Failed to parse JSON: {0}")]
+    #[error("Failed to parse JSON.")]
     Parse(#[from] ParseError),
 
-    #[error("Failed to get one value from JSON: {0}")]
+    #[error("Failed to get one value from JSON.")]
     ExactlyOne(#[from] ExactlyOneError),
 
-    #[error("Failed to creae JSON: {0}")]
+    #[error("Failed to creae JSON.")]
     Json(#[from] serde_json::Error),
 
+    #[error("Aggregator error: {0}.")]
+    Aggregator(String),
 }
 
 #[derive(Debug)]
@@ -73,33 +75,47 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
         };
 
         let response = request_builder.send().await?;
-        if response.status().is_success() {
+        let response_status = response.status();
+        if response_status.is_success() {
             let category = &service.category;
             let json_content = from_str(&response.text().await?)?;
             for (field, path) in &(service.fields.0) {
-                let json_path = JsonPath::parse(&path)?;
-                let values = json_path.query(&json_content).all();
-                if values.len() > 0 {
-                    let node = match values.first() {
-                        Some(value) => value,
-                        None => &&Value::Null
-
-                    };
-                    let node_str = match node {
-                        Value::Null => "Null".to_string(),
-                        Value::Bool(value) => value.to_string(),
-                        Value::Number(value) => value.to_string(),
-                        Value::String(value) => value.clone(),
-                        Value::Array(_value) => "JSON Array not supported!".to_string(),
-                        Value::Object(_value) => "JSON Object not supported!".to_string()
-                    };
-
-                    aggregates.add(category.clone(), field.clone(), node_str);
-                }
+                let node_str = evaluate_json_path(&json_content, path)?;
+                aggregates.add(category.clone(), field.clone(), node_str);
             }
         } else {
-            println!("Request failed! Status: {}", response.status());
+            Err(AggregatorError::Aggregator(format!(
+                "Request failed! Status: {}",
+                response_status.as_str()
+            )))?;
         }
     }
     Ok(aggregates)
+}
+
+fn evaluate_json_path(json_content: &Value, path: &String) -> Result<String, AggregatorError> {
+    let json_path = JsonPath::parse(&path)?;
+    let values = json_path.query(&json_content).all();
+    if values.len() > 0 {
+        let node = match values.first() {
+            Some(value) => value,
+            None => &&Value::Null,
+        };
+        match node {
+            Value::Null => Ok("Null".to_string()),
+            Value::Bool(value) => Ok(value.to_string()),
+            Value::Number(value) => Ok(value.to_string()),
+            Value::String(value) => Ok(value.clone()),
+            Value::Array(_value) => Err(AggregatorError::Aggregator(
+                "JSON Array not supported!".to_string(),
+            )),
+            Value::Object(_value) => Err(AggregatorError::Aggregator(
+                "JSON Object not supported!".to_string(),
+            )),
+        }
+    } else {
+        Err(AggregatorError::Aggregator(
+            "Could not parse JSON.".to_string(),
+        ))
+    }
 }
