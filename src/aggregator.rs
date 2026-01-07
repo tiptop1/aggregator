@@ -9,6 +9,9 @@ use serde_json::{from_str, Value};
 use serde_json_path::{ExactlyOneError, JsonPath, ParseError};
 use thiserror::Error;
 
+use std::thread;
+use std::time::Duration;
+
 #[derive(Error, Debug)]
 pub enum AggregatorError {
     #[error("Failed to get content from url.")]
@@ -71,7 +74,8 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
     let mut aggregates = Aggregates::new();
     for service in &(config.services) {
         let client = Client::new();
-        let mut request_builder = client.get(&service.endpoint);
+        let service_endpoint = &service.endpoint;
+        let mut request_builder = client.get(service_endpoint);
         if let Some(headers) = &service.headers {
             for (header, value) in headers.0.iter() {
                 request_builder = request_builder.header(header, value);
@@ -82,8 +86,13 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
         let response_status = response.status();
         if response_status.is_success() {
             let category = &service.category;
-            let json_content = from_str(&response.text().await?)?;
-            let reference_fields = evaluate_reference_fields(&json_content, &service.reference_fields)?;
+            let json_content = &from_str(&response.text().await?)?;
+            let reference_fields = evaluate_reference_fields(
+                json_content,
+                category,
+                service_endpoint,
+                &service.reference_fields,
+            )?;
             for (field, path) in &(service.fields.0) {
                 let mut new_path = path.clone();
                 for (ref_field, ref_value) in &reference_fields {
@@ -92,7 +101,8 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
                         new_path = new_path.replace(&placeholder, ref_value);
                     }
                 }
-                let node_str = evaluate_json_path(&json_content, &new_path)?;
+                let node_str =
+                    evaluate_json_path(json_content, category, service_endpoint, &new_path, false)?;
                 aggregates.add(category.clone(), field.clone(), node_str);
             }
         } else {
@@ -101,13 +111,20 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
                 response_status.as_str()
             )))?;
         }
+        // Pause the current thread for 1 second to avoid rate limiting
+        thread::sleep(Duration::from_secs(1));
     }
     Ok(aggregates)
 }
 
-fn evaluate_json_path(json_content: &Value, path: &String) -> Result<String, AggregatorError> {
+fn evaluate_json_path(
+    json_content: &Value,
+    category: &String,
+    service: &String,
+    path: &String,
+    ref_path: bool,
+) -> Result<String, AggregatorError> {
     let json_path = JsonPath::parse(&path)?;
-    print!("Path: {}\n", path);
     let values = json_path.query(&json_content).all();
     if values.len() > 0 {
         let node = match values.first() {
@@ -127,22 +144,33 @@ fn evaluate_json_path(json_content: &Value, path: &String) -> Result<String, Agg
             )),
         }
     } else {
-        Err(AggregatorError::Aggregator(
-            "Could not parse JSON.".to_string(),
-        ))
+        let path_type = if ref_path {
+            "reference field path"
+        } else {
+            "field path"
+        };
+        Err(AggregatorError::Aggregator(format!(
+            "Could not parse JSON for category '{}' and service '{}' with {} '{}'.",
+            category, service, path_type, path
+        )))
     }
 }
 
-fn evaluate_reference_fields(json_content: &Value, reference_fields: &Option<ReferenceFields>) -> Result<HashMap<String, String>, AggregatorError> {
+fn evaluate_reference_fields(
+    json_content: &Value,
+    category: &String,
+    service: &String,
+    reference_fields: &Option<ReferenceFields>,
+) -> Result<HashMap<String, String>, AggregatorError> {
     match reference_fields {
         Some(fields) => {
             let mut evaluated_fields = HashMap::new();
             for (field, path) in fields.0.iter() {
-                let value = evaluate_json_path(json_content, path)?;
+                let value = evaluate_json_path(json_content, category, service, path, true)?;
                 evaluated_fields.insert(field.clone(), value);
             }
             Ok(evaluated_fields)
-        },
-        None => Ok(HashMap::new())
+        }
+        None => Ok(HashMap::new()),
     }
 }
