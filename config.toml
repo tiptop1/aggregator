@@ -53,6 +53,21 @@ price = "$.binancecoin.usd"
 price_change_24h = "$.binancecoin.usd_24h_change"
 
 [[services]]
+category = "SPY (SPDR S&P 500 ETF Trust)"
+endpoint = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=${alpha_vantage_api_key}"
+
+[services.reference_fields]
+last_quotation_date = "$['Meta Data']['3. Last Refreshed']"
+
+[services.fields]
+date = "$['Meta Data']['3. Last Refreshed']"
+open = "$['Time Series (Daily)']['${last_quotation_date}']['1. open']"
+high = "$['Time Series (Daily)']['${last_quotation_date}']['2. high']"
+low = "$['Time Series (Daily)']['${last_quotation_date}']['3. low']"
+close = "$['Time Series (Daily)']['${last_quotation_date}']['4. close']"
+volume = "$['Time Series (Daily)']['${last_quotation_date}']['5. volume']"
+
+[[services]]
 category = "CCJ (Cameco)"
 endpoint = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=CCJ&apikey=${alpha_vantage_api_key}"
 
