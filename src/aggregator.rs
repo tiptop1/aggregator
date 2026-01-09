@@ -72,8 +72,10 @@ impl Aggregates {
 
 pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorError> {
     let mut aggregates = Aggregates::new();
+    let client = Client::builder()
+        .user_agent("Aggregator/1.0 (contact: tomasz.gasior@gmail.com)")
+        .build()?;
     for service in &(config.services) {
-        let client = Client::new();
         let service_endpoint = &service.endpoint;
         let mut request_builder = client.get(service_endpoint);
         if let Some(headers) = &service.headers {
@@ -82,11 +84,12 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
             }
         };
 
+        let category = &service.category;
         let response = request_builder.send().await?;
         let response_status = response.status();
+        let response_text = response.text().await?;
         if response_status.is_success() {
-            let category = &service.category;
-            let json_content = &from_str(&response.text().await?)?;
+            let json_content = &from_str(&response_text)?;
             let reference_fields = evaluate_reference_fields(
                 json_content,
                 category,
@@ -107,8 +110,10 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
             }
         } else {
             Err(AggregatorError::Aggregator(format!(
-                "Request failed! Status: {}",
-                response_status.as_str()
+                "Request for category '{}' failed with status: {} and details: '{}'.",
+                category,
+                response_status.as_str(),
+                response_text
             )))?;
         }
         // Pause the current thread for 1 second to avoid rate limiting
