@@ -33,12 +33,14 @@ pub enum AggregatorError {
 #[derive(Debug)]
 pub struct Aggregates {
     aggregates: IndexMap<String, IndexMap<String, String>>,
+    pub errors: Vec<String>,
 }
 
 impl Aggregates {
     fn new() -> Self {
         Aggregates {
             aggregates: IndexMap::new(),
+            errors: Vec::new(),
         }
     }
 
@@ -55,7 +57,7 @@ impl Aggregates {
         return Some(fields);
     }
 
-    fn add(&mut self, category: String, field: String, value: String) {
+    fn add_aggregate(&mut self, category: String, field: String, value: String) {
         self.aggregates
             .entry(category)
             .and_modify(|e| {
@@ -68,13 +70,23 @@ impl Aggregates {
                 new_fields
             });
     }
+
+    fn add_error(&mut self, error: String) {
+        self.errors.push(error);
+    }
 }
 
-pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorError> {
+pub async fn aggregate_fields(config: &Config) -> Aggregates {
     let mut aggregates = Aggregates::new();
-    let client = Client::builder()
+
+    let Ok(client) = Client::builder()
         .user_agent("Aggregator/1.0 (contact: tomasz.gasior@gmail.com)")
-        .build()?;
+        .build()
+    else {
+        aggregates.add_error(String::from("Failed to create HTTP client."));
+        return aggregates;
+    };
+
     for service in &(config.services) {
         let service_endpoint = &service.endpoint;
         let mut request_builder = client.get(service_endpoint);
@@ -85,17 +97,43 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
         };
 
         let category = &service.category;
-        let response = request_builder.send().await?;
+        let Ok(response) = request_builder.send().await else {
+            aggregates.add_error(format!(
+                "Request for category '{}' on service {} failed to send.",
+                category, service_endpoint
+            ));
+            continue;
+        };
         let response_status = response.status();
-        let response_text = response.text().await?;
+
+        let Ok(response_text) = response.text().await else {
+            aggregates.add_error(format!(
+                "Request for category '{}' on service {} failed to read response text.",
+                category, service_endpoint
+            ));
+            continue;
+        };
+
         if response_status.is_success() {
-            let json_content = &from_str(&response_text)?;
-            let reference_fields = evaluate_reference_fields(
+            let Ok(json_content) = &from_str(&response_text) else {
+                aggregates.add_error(format!(
+                    "Request for category '{}' on service {} returned invalid JSON.",
+                    category, service_endpoint
+                ));
+                continue;
+            };
+            let Ok(reference_fields) = evaluate_reference_fields(
                 json_content,
                 category,
                 service_endpoint,
                 &service.reference_fields,
-            )?;
+            ) else {
+                aggregates.add_error(format!(
+                    "Request for category '{}' on service {} failed to evaluate reference fields.",
+                    category, service_endpoint
+                ));
+                continue;
+            };
             for (field, path) in &(service.fields.0) {
                 let mut new_path = path.clone();
                 for (ref_field, ref_value) in &reference_fields {
@@ -104,22 +142,37 @@ pub async fn aggregate_fields(config: &Config) -> Result<Aggregates, AggregatorE
                         new_path = new_path.replace(&placeholder, ref_value);
                     }
                 }
-                let node_str =
-                    evaluate_json_path(json_content, category, service_endpoint, &new_path, false)?;
-                aggregates.add(category.clone(), field.clone(), node_str);
+                let node_str = match evaluate_json_path(
+                    json_content,
+                    category,
+                    service_endpoint,
+                    &new_path,
+                    false,
+                ) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        aggregates.add_error(format!(
+                            "Request for category '{}' on service {} failed to evaluate field '{}': {}",
+                            category, service_endpoint, field, e
+                        ));
+                        continue;
+                    }
+                };
+                aggregates.add_aggregate(category.clone(), field.clone(), node_str);
             }
         } else {
-            Err(AggregatorError::Aggregator(format!(
-                "Request for category '{}' failed with status: {} and details: '{}'.",
+            aggregates.add_error(format!(
+                "Request for category '{}' on service {} failed with status: {} and details: '{}'.",
                 category,
+                service_endpoint,
                 response_status.as_str(),
                 response_text
-            )))?;
+            ));
         }
         // Pause the current thread for 1 second to avoid rate limiting
         thread::sleep(Duration::from_secs(1));
     }
-    Ok(aggregates)
+    aggregates
 }
 
 fn evaluate_json_path(
