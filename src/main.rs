@@ -43,7 +43,7 @@ async fn main() -> Result<(), ApplicationError> {
         }
     };
     let config = read_configuration(&config_file)?;
-    let aggregates = aggregate_fields(&config).await?;
+    let aggregates = aggregate_fields(&config).await;
     let printer = SmtpPrinter::new(&config.smtp_printer);
     let _ = printer.print(&aggregates)?;
     Ok(())
