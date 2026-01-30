@@ -40,11 +40,27 @@ pub trait Printer {
             }
             str.push_str("\n");
         }
+        let errors = &aggregates.errors;
+        if !errors.is_empty() {
+            str.push_str("***** ERRORS *****\n");
+            for error in errors {
+                str.push_str("- ");
+                str.push_str(&error);
+                str.push('\n');
+            }
+            str.push_str("\n");
+        }
         str
     }
 }
 
 pub struct StdoutPrinter;
+
+impl StdoutPrinter {
+    pub fn new() -> StdoutPrinter {
+        StdoutPrinter {}
+    }
+}
 
 impl Printer for StdoutPrinter {
     fn print(&self, aggregates: &Aggregates) -> Result<(), PrinterError> {
